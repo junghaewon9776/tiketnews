@@ -3,7 +3,6 @@ name: Ticketlink daily check
 on:
   schedule:
     - cron: "0 0 * * *"  # 09:00 KST
-    - cron: "0 12 * * *"  # 21:00 KST
   workflow_dispatch: {}
 
 permissions:
