@@ -40,12 +40,33 @@ def fetch_updates(offset: int):
     return resp.json().get("result", [])
 
 
-SNAPSHOT_TRIGGERS = {"", "/start", "현황", "최신", "확인"}
-SEARCH_COMMANDS = {"지역", "검색", "search"}
+SNAPSHOT_WORDS = {"현황", "최신", "확인", "status"}
+SEARCH_COMMANDS = {"지역", "검색", "search", "region"}
+TIME_COMMANDS = {"알림시간", "시간변경", "time", "schedule"}
+
+BOT_COMMANDS = [
+    {"command": "search", "description": "이름으로 티켓링크 검색 (예: /search 영광)"},
+    {"command": "status", "description": "감시 중인 공연장 전체 현황 보기"},
+    {"command": "schedule", "description": "알림 시간 변경 (예: /schedule 9, 21)"},
+]
+
+
+def register_commands():
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setMyCommands"
+    try:
+        requests.post(url, json={"commands": BOT_COMMANDS}, timeout=10)
+    except requests.RequestException as exc:
+        print("setMyCommands failed:", exc)
+
+
+def is_snapshot_request(text: str) -> bool:
+    if text in ("", "/start"):
+        return True
+    return text.lstrip("/").strip() in SNAPSHOT_WORDS
 
 
 def parse_keyword(text: str) -> str:
-    """'/지역 영광', '/검색 영광', '영광' -> '영광'."""
+    """'/지역 영광', '/search 영광', '영광' -> '영광'."""
     if text.startswith("/"):
         parts = text[1:].split(maxsplit=1)
         if not parts:
@@ -55,9 +76,6 @@ def parse_keyword(text: str) -> str:
         # unknown slash command with no recognized verb — treat the rest as the keyword
         return " ".join(parts).strip()
     return text.strip()
-
-
-TIME_COMMANDS = {"알림시간", "시간변경", "time"}
 
 DAILY_WORKFLOW_TEMPLATE = """name: Ticketlink daily check
 
@@ -150,6 +168,8 @@ def main():
         print("Telegram credentials missing; nothing to do.")
         return
 
+    register_commands()
+
     offset = load_offset()
     updates = fetch_updates(offset)
 
@@ -184,7 +204,7 @@ def main():
                 send_telegram("시간을 인식하지 못했어요. 예: '알림시간 9시, 21시'")
             continue
 
-        if text in SNAPSHOT_TRIGGERS:
+        if is_snapshot_request(text):
             send_telegram(build_snapshot())
             print("현황 요청 감지, 감시 목록 전체 현황 전송함")
         else:
