@@ -48,7 +48,21 @@ BOT_COMMANDS = [
     {"command": "search", "description": "이름으로 티켓링크 검색 (예: /search 영광)"},
     {"command": "status", "description": "감시 중인 공연장 전체 현황 보기"},
     {"command": "schedule", "description": "알림 시간 변경 (예: /schedule 9, 21)"},
+    {"command": "help", "description": "사용 가능한 명령어 안내"},
 ]
+
+HELP_WORDS = {"help", "도움말", "명령어"}
+
+HELP_TEXT = """[사용 가능한 명령어]
+
+/search <이름> — 티켓링크에서 이름으로 검색 (예: /search 영광문화예술의전당)
+그냥 이름만 보내도 동일하게 검색됩니다.
+
+/status — 감시 중인 공연장 전체 현황 보기
+
+/schedule <시간, 시간...> — 매일 알림 시간 변경 (예: /schedule 9, 21)
+
+/help — 이 안내 메시지 보기"""
 
 
 def register_commands():
@@ -193,6 +207,11 @@ def main():
         return
 
     for text in texts:
+        if text.lstrip("/").strip() in HELP_WORDS:
+            send_telegram(HELP_TEXT)
+            print("도움말 요청 감지, 안내 전송함")
+            continue
+
         hours = parse_time_command(text)
         if hours is not None:
             if hours:
