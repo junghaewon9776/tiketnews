@@ -1,16 +1,20 @@
-name: Ticketlink watch
+name: Ticketlink on-demand check
 
 on:
   schedule:
-    # 09:00 KST daily (KST = UTC+9)
-    - cron: "0 0 * * *"
+    # poll every 5 minutes for a message from the user
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
+concurrency:
+  group: tiketnews-state
+  cancel-in-progress: false
+
 jobs:
-  check:
+  listen:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,16 +26,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run scraper
+      - name: Check for a Telegram message and reply
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python scraper.py
+        run: python listen.py
 
       - name: Commit updated state
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add state/
-          git diff --cached --quiet || git commit -m "Update seen state"
-          git push
+          git add state/ .github/workflows/daily.yml
+          git diff --cached --quiet || (git commit -m "Update state / schedule (listener)" && git pull --rebase && git push)

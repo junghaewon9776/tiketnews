@@ -67,6 +67,12 @@ def search_ticketlink(keyword: str):
         if keyword not in venue and keyword not in title:
             continue
 
+        # skip past/closed shows ("판매종료") — only alert on ones still open for reservation
+        card = a.find_parent("li") or a.parent
+        reserve_btn = card.select_one("a.btn_reserve, a.btn_reserve_end") if card else None
+        if reserve_btn and "btn_reserve_end" in reserve_btn.get("class", []):
+            continue
+
         results.append(
             {
                 "id": product_id,
@@ -101,32 +107,5 @@ def send_telegram(text: str):
         print("Telegram send failed:", resp.status_code, resp.text, file=sys.stderr)
 
 
-def main():
-    keywords = json.loads(VENUES_FILE.read_text(encoding="utf-8"))
-    any_new = False
-
-    for keyword in keywords:
-        seen = load_seen(keyword)
-        current = search_ticketlink(keyword)
-        current_ids = {r["id"] for r in current}
-
-        new_items = [r for r in current if r["id"] not in seen]
-
-        if new_items:
-            any_new = True
-            lines = [f"[티켓링크 신규 알림] {keyword}", ""]
-            for r in new_items:
-                lines.append(f"- {r['title']}\n  {r['venue']}\n  {r['url']}")
-            send_telegram("\n\n".join(lines))
-            print(f"{keyword}: {len(new_items)}건 신규 발견, 알림 전송")
-        else:
-            print(f"{keyword}: 신규 없음 ({len(current_ids)}건 확인)")
-
-        save_seen(keyword, current_ids | seen)
-
-    if not any_new:
-        print("모든 감시 항목에서 신규 항목 없음")
-
-
-if __name__ == "__main__":
-    main()
+def load_venues():
+    return json.loads(VENUES_FILE.read_text(encoding="utf-8"))
